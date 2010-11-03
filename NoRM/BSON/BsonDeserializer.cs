@@ -86,9 +86,9 @@ namespace Norm.BSON
         {
             return Deserialize<T>(stream, stream.ReadInt32());
         }
+
         private static T Deserialize<T>(BinaryReader stream, int length)
         {
-
             var deserializer = new BsonDeserializer(stream);
             T retval = default(T);
             try
@@ -98,13 +98,15 @@ namespace Norm.BSON
             catch (Exception ex)
             {
                 int toRead = deserializer._current.Length - deserializer._current.Digested;
-                deserializer._reader.ReadBytes(toRead);
+                if (toRead > 0)
+                {
+                    deserializer._reader.ReadBytes(toRead);
+                }
                 throw ex;
             }
 
             return retval;
         }
-
 
         private T Read<T>(int length)
         {
@@ -285,7 +287,14 @@ namespace Norm.BSON
             }
             if (type.IsInterface == false && type.IsAbstract == false)
             {
-                instance = Activator.CreateInstance(type, true);
+                try
+                {
+                    instance = Activator.CreateInstance(type, true);
+                }
+                catch (MissingMethodException ex)
+                {
+                    throw new MongoException(string.Format("Failed to create an instance of type '{0}': No public default constructor found!", type), ex);
+                }
                 typeHelper = ReflectionHelper.GetHelperForType(type);
                 typeHelper.ApplyDefaultValues(instance);
             }
