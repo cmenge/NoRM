@@ -16,6 +16,7 @@ namespace Norm
     {
         private static readonly Type AttributeType = typeof(MongoDiscriminatedAttribute);
         private static readonly Type RootType = typeof(object);
+        private static object DiscriminatorCacheSyncRoot = new object();
 
         private static HybridDictionary DiscriminatorDictionary = new HybridDictionary();
 
@@ -48,13 +49,16 @@ namespace Norm
         /// <returns></returns>
         private static Type GetDiscriminatingTypeForCached(Type type)
         {
-            if (DiscriminatorDictionary.Contains(type.GetHashCode()))
-                return (Type)(DiscriminatorDictionary[type.GetHashCode()]);
-            else
+            lock (DiscriminatorCacheSyncRoot)
             {
-                Type result = GetDiscriminatingTypeForInternal(type);
-                DiscriminatorDictionary.Add(type.GetHashCode(), result);
-                return result;
+                if (DiscriminatorDictionary.Contains(type.GetHashCode()))
+                    return (Type)(DiscriminatorDictionary[type.GetHashCode()]);
+                else
+                {
+                    Type result = GetDiscriminatingTypeForInternal(type);
+                    DiscriminatorDictionary.Add(type.GetHashCode(), result);
+                    return result;
+                }
             }
         }
 
